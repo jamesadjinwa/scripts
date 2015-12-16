@@ -29,15 +29,23 @@ else
 fi
 
 # Check if youtube url exists
-echo $url | grep "www.youtube.com" > /dev/null
-case $? in
-	0 ) 
-		echo "Good! This is a Youtube url.";;
-	1 ) 
-		echo "This not a youtube url" ;;
-	* ) 
-		echo "An error has occured"; exit
-esac
+if [ `echo $url | grep ^https://www.youtube.com > /dev/null` ]
+then
+	echo "Good! This is a Youtube url"
+elif [ `echo $url | grep ^www.youtube.com > /dev/null` ]
+then
+	echo "Good! This is a Youtube url";
+	${$url/www/https://www}	
+
+elif [ `echo $url | grep ^youtube.com > /dev/null` ]
+then
+	echo "Good! This is a Youtube url";
+	${$url/youtube.com/https://www.youtube.com}	
+else
+	echo "Sorry! This is not a youtube url";
+	exit
+fi
+
 # Check if link is youtube playlist 
 string2test="playlists"		# Youtube's playlist url end with the string : "playlists"
 stringinurl=`echo "$url" | $CUT -d / -f 6`
@@ -48,6 +56,7 @@ then
 else
 	echo "Good! This is a playlist url"
 fi
+
 # Check if playlist exists
 echo "Connecting to $url ..."
 $WGET -O - $url > /dev/null
