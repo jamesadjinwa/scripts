@@ -19,17 +19,17 @@ echo "--------------------------------------------------------------------------
 read -p "Enter the url of the youtube playlist or channel: " url
 
 # Url validation
-regex='(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]'
-if 	[[ $string =~ $regex ]]
-then
-	echo "Good! $url is a valid url."
-else
-       	echo "Sorry! $url is not a valid url.";
-       	exit	
-fi
+#regex=^((ht|f)tp(s?)\:\/\/|~/|/)?([\w]+:\w+@)?([a-zA-Z]{1}([\w\-]+\.)+([\w]{2,5}))(:[\d]{1,5})?((/?\w+/)+|/?)(\w+\.[\w]{3,4})?((\?\w+=\w+)?(&\w+=\w+)*)?
+#if [[ $string =~ $regex ]]
+#then
+#	echo "Good! $url is a valid url."
+#else
+#       	echo "Sorry! $url is not a valid url.";
+#       	exit	
+#fi
 
-# Check if youtube url exists
-if [ `echo $url | grep ^https://www.youtube.com > /dev/null` ]
+# Check if its a youtube url
+if [ `echo $url | grep ^https://www.youtube.com > /dev/null` -o `echo $url | grep ^http://www.youtube.com > /dev/null` ]
 then
 	echo "Good! This is a Youtube url"
 elif [ `echo $url | grep ^www.youtube.com > /dev/null` ]
@@ -46,7 +46,7 @@ else
 	exit
 fi
 
-# Check if link is youtube playlist 
+# Check if url is that of a youtube playlist 
 string2test="playlists"		# Youtube's playlist url end with the string : "playlists"
 stringinurl=`echo "$url" | $CUT -d / -f 6`
 if [ "$string2test" != "$stringinurl" ]	# "playlist" is at the 6th position in the url
@@ -80,7 +80,7 @@ else
 	echo "$numberoflinks links found !"
 fi
 username=`echo $url | $CUT -d / -f 5` 			# Etract the username. Will be part of the csv filename.
-`$WGET -qO - $url | grep -o '<h3 .*href=\"\/playlist.*>' | sed -e 's/<a /\n<a /g' | sed -e 's/<a .*href=['"'"'"]//' -e 's/["'"'"'].*$//' -e '/^$/ d' | sed -e 's/<h3 .*class=$//g' | sed '/^\s*$/d' >$username"_playlist.csv"`
+`$WGET -qO - $url | grep -o '<h3 .*href=\"\/playlist.*>' | sed -e 's/<a /\n<a /g' | sed -e 's/<a .*href=['"'"'"]//' -e 's/["'"'"'].*$//' -e '/^$/ d' | sed -e 's/<h3 .*class=$//g' | sed '/^\s*$/d' | sed -e "s/^/https:\/\/www.youtube.com\/user\/$username/" >$username"_playlist.csv"`
 
 exit
 # END
