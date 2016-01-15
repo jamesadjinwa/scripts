@@ -87,7 +87,12 @@ sleep 2
 function ExtractYoutubePlaylistLinks {
 echo "Extracting links in $url ... "
 # Check the number of links
-numberoflinks=`$WGET -qO - $url | grep -o '<h3 .*href=\"\/playlist.*>' | sed -e 's/<a /\n<a /g' | sed -e 's/<a .*href=['"'"'"]/    /' -e 's/["'"'"'].*$//' -e '/^$/ d' | sed -e 's/<h3 .*class=$//g' | sed '/^\s*$/d' | wc -l`
+numberoflinks=`$WGET -qO - $url \
+	| grep -o '<h3 .*href=\"\/playlist.*>' \
+	| sed -e 's/<a /\n<a /g' | sed -e 's/<a .*href=['"'"'"]/    /' -e 's/["'"'"'].*$//' -e '/^$/ d' \
+	| sed -e 's/<h3 .*class=$//g' | sed '/^\s*$/d' \
+	| wc -l`
+
 if [ "$numberoflinks" -eq 0 ]
 then
 	echo "Sorry ! $numberoflinks links found.";
@@ -99,12 +104,15 @@ fi
 
 function WriteLinksToFile {
 username=`echo $url | $CUT -d / -f 5` 			# Etract the username. Will be part of the csv filename.
-#`$WGET -qO - $url | grep -o '<h3 .*href=\"\/playlist.*>' | sed -e 's/<a /\n<a /g' | sed -e 's/<a .*href=['"'"'"]//' -e 's/["'"'"'].*$//' -e '/^$/ d' | sed -e 's/<h3 .*class=$//g' | sed '/^\s*$/d' | sed -e "s/^/https:\/\/www.youtube.com\/user\/$username/" >$username"_playlist.csv"`
-
 
 # Write name of link
 # Awk does the construction of csv file with "," as seperator
-`$WGET -qO - $url | grep -o '<h3 .*href=\"\/playlist.*>' | sed -e 's/<a /\n<a /g' | sed -e 's/title=/\ntitle=/g' | sed -e 's/href=['"'"'"]/\n/g' | sed -e 's/title=['"'"'"]//g' | sed -e 's/^<a //g' | sed -e 's/^<h3 //g' | sed -e 's/^class.*$//g' | sed -e 's/".*$//g' | sed '/^\s*$/d' | sed -e '/^\/playlist/! s/.*/"&"/g' | sed -e 's/^\/playlist/https:\/\/www.youtube.com&/' | $AWK '!/playlist/{if (x)print x;x="";}{x=(!x)?$0:x","$0;}END{print x;}' >$username"_playlist.csv"`
+`$WGET -qO - $url \
+	| grep -o '<h3 .*href=\"\/playlist.*>' \
+	| sed -e 's/<a /\n<a /g' -e 's/title=/\ntitle=/g' -e 's/href=['"'"'"]/\n/g' -e 's/title=['"'"'"]//g' \
+	| sed -e 's/^<a //g' -e 's/^<h3 //g' -e 's/^class.*$//g' -e 's/".*$//g' | sed '/^\s*$/d' \
+	| sed -e '/^\/playlist/! s/.*/"&"/g' -e 's/^\/playlist/https:\/\/www.youtube.com&/' \
+	| $AWK '!/playlist/{if (x)print x;x="";}{x=(!x)?$0:x","$0;}END{print x;}' >$username"_playlist.csv"`
 
 # Insert header in csv file (Title, Link)
 `sed -i.bak 1i"Title,Link" $username"_playlist.csv"`
