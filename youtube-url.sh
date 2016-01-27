@@ -7,10 +7,35 @@
 
 clear
 
+shopt -s -o nounset			# Unable the use of undefined variable
+
 declare -rx SCRIPT=${0##*/} 			# SCRIPT is the name of this script
-declare -r WGET=`which wget`
-declare -r CUT=`which cut`
-declare -r AWK=`which awk`
+declare -r WGET="/usr/bin/wget"
+declare -r CUT="/usr/bin/cut"
+declare -r AWK="/usr/bin/awk"
+declare -r MKDIR="/bin/mkdir"
+
+# Sanity checks
+if test -z "$BASH" ; then
+	printf "$SCRIPT:$LINEO: please run this script with the BASH shell\n" >&2
+	exit 192
+fi
+if test ! -x "$WGET" ; then
+	printf "$SCRIPT:$LINEO: the command $WGET is not available - aborting\n" >&2
+	exit 192
+fi
+if test ! -x "$CUT" ; then
+	printf "$SCRIPT:$LINEO: the command $CUT is not available - aborting\n" >&2
+	exit 192
+fi
+if test ! -x "$AWK" ; then
+	printf "$SCRIPT:$LINEO: the command $AWK is not available - aborting\n" >&2
+	exit 192
+fi
+if test ! -x "$MKDIR" ; then
+	printf "$SCRIPT:$LINEO: the command $MKDIR is not available - aborting\n" >&2
+	exit 192
+fi
 
 # Welcome message
 echo "-----------------------------------------------------------------------------"
@@ -46,7 +71,7 @@ then
 	${$url/youtube.com/https://www.youtube.com}	
 else
 	echo "Sorry! This is not a youtube url";
-	exit
+	exit 1
 fi
 }
 
@@ -57,7 +82,7 @@ stringinurl=`echo "$url" | $CUT -d / -f 6`
 if [ "$string2test" != "$stringinurl" ]	# "playlist" is at the 6th position in the url
 then
 	echo "This is not the url of a playlist";
-	exit
+	exit 1
 else
 	echo "Good! This is a playlist url"
 fi
@@ -70,16 +95,16 @@ $WGET -O - $url > /dev/null
 case $? in
 	0 ) echo "Got it !";;
 	4 ) echo "Probably a network failure";; 
-	* ) echo "An error occured!"; exit
+	* ) echo "An error occured!"; exit 2
 esac
 
 }
 
-# TODO
-# Check if url is that of a youtube channel
-function CheckYoutubeChannelUrl {
-sleep 2
-}
+# TODO  Check if url is that of a youtube channel
+# function CheckYoutubeChannelUrl {
+# sleep 2
+# }
+
 # Check if playlist exits
 
 # Extract urls in the youtube playlist and 
@@ -96,15 +121,19 @@ numberoflinks=`$WGET -qO - $url \
 if [ "$numberoflinks" -eq 0 ]
 then
 	echo "Sorry ! $numberoflinks links found.";
-	exit
+	exit 3
 else
 	echo "$numberoflinks links found !"
 fi
 }
 
-function WriteLinksToFile {
+function ExtractUsername {
 username=`echo $url | $CUT -d / -f 5` 			# Etract the username. Will be part of the csv filename.
+}
 
+function WriteLinksToFile {
+
+ExtractUsername
 # Write name of link
 # Awk does the construction of csv file with "," as seperator
 `$WGET -qO - $url \
@@ -112,17 +141,45 @@ username=`echo $url | $CUT -d / -f 5` 			# Etract the username. Will be part of 
 	| sed -e 's/<a /\n<a /g' -e 's/title=/\ntitle=/g' -e 's/href=['"'"'"]/\n/g' -e 's/title=['"'"'"]//g' \
 	| sed -e 's/^<a //g' -e 's/^<h3 //g' -e 's/^class.*$//g' -e 's/".*$//g' | sed '/^\s*$/d' \
 	| sed -e '/^\/playlist/! s/.*/"&"/g' -e 's/^\/playlist/https:\/\/www.youtube.com&/' \
-	| $AWK '!/playlist/{if (x)print x;x="";}{x=(!x)?$0:x","$0;}END{print x;}' >$username"_playlist.csv"`
+	| $AWK '!/playlist/{if (x)print x;x="";}{x=(!x)?$0:x","$0;}END{print x;}' >$username"_playlists.csv"`
 
 # Insert header in csv file (Title, Link)
-`sed -i.bak 1i"Title,Link" $username"_playlist.csv"`
+# `sed -i.bak 1i"Title,Link" $username"_playlists.csv"`
 }
+
+function WriteVideoUrlToFile {
+# TODO Read each link in the csv file and extract the urls of videos. Save the urls found in file.
+# The file name is the title of the url
+ExtractUsername
+if [[ ! -d $username"_playlists" ]] ; then
+	$MKDIR $username"_playlists"
+fi
+n=0
+while read line; do
+	n=$[$n +1]
+	echo $line
+	url=`echo $line | $CUT -d , -f 2`
+	`$WGET -qO - $url \
+		| grep 'data-title' \
+		| sed 's/data-title/\ndata-title /g; s/<a /\n<a /g' \
+		| grep -v '^<tr' \
+		| sed 's/><td class=.*.*.*//g; s/class=.*//g; s/<a href=//g; s/data-title =//g' \
+		| sed 's/ data-video-id=.*//g' \
+		| sed 's/^"\/watch?v/"https:\/\/www.youtube.com\/watch?v/' \
+		| $AWK '!/watch/{if (x)print x;x="";}{x=(!x)?$0:x","$0;}END{print x;}' \
+		>$username"_playlists/playlist"$n".csv"`
+done <$username"_playlists.csv"
+}
+
+# TODO Put all the files generated in a directory. The directory name is the Youtube username.
+
 
 CheckYoutubeUrl 
 CheckYoutubePlaylistUrl
 CheckYoutubeUrlConnection 
 ExtractYoutubePlaylistLinks 
 WriteLinksToFile 
+WriteVideoUrlToFile
 
-exit
+exit 0
 # END
